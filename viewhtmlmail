@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 
 # Take an mbox HTML message (e.g. from mutt), split it
 # and rewrite it so it can be viewed in an external browser.
@@ -19,15 +19,27 @@
 # macro  index  <F10>  "<pipe-message>~/bin/viewhtmlmail\n" "View HTML in browser"
 # macro  pager  <F10>  "<pipe-message>~/bin/viewhtmlmail\n" "View HTML in browser"
 
+import argparse
 import os, sys
 import re
 import time
+import subprocess
 import shutil
 import email, mimetypes
 import tempfile
 
-def view_html_message(tmpdir):
 
+def getargs():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--firefox", action="store_true",
+                    help="view email with Firefox")
+    ap.add_argument("--chromium", action="store_true", default=True,
+                    help="view email with Chromium")
+    return ap.parse_args()
+
+
+def view_html_message(tmpdir):
+    args = getargs()
     msg = email.message_from_string(sys.stdin.read())
 
     html_part = None
@@ -117,12 +129,23 @@ def view_html_message(tmpdir):
     fp.write(htmlsrc.encode(content_encoding))
     fp.close()
 
-    # Now we have the file. Call firefox on it.
-    print("Calling firefox for file://{htmlfile}")
-    os.system("firefox -new-tab file://" + htmlfile)
+    if args.firefox:
+        # Now we have the file. Call firefox on it.
+        print("Calling firefox for file://{htmlfile}")
+        os.system("firefox -new-tab file://" + htmlfile)
 
-    # Wait a while to make sure firefox has loads the imgaes, then clean up.
-    time.sleep(6)
+    if args.chromium:
+        # Now we have the file. Call chromium on it.
+        cmd = [
+            "chromium",
+            '--profile-directory=Profile 1',
+            "--new-window",
+            htmlfile,
+        ]
+        subprocess.Popen(cmd, stderr=subprocess.DEVNULL)
+
+    # let it load, then clean up
+    time.sleep(1)
     shutil.rmtree(tmpdir)
 
 if __name__ == '__main__':
